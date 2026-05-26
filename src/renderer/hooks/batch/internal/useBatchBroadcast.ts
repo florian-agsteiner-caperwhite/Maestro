@@ -139,6 +139,27 @@ export function useBatchBroadcast({ dispatch }: UseBatchBroadcastDeps): UseBatch
 										newStateForSession.loopIteration !== prevSessionState.loopIteration
 											? newStateForSession.loopIteration
 											: undefined,
+									// Goal-Driven mode fields (only ever change in goal mode)
+									goalMode:
+										newStateForSession.goalMode !== prevSessionState.goalMode
+											? newStateForSession.goalMode
+											: undefined,
+									goalProgress:
+										newStateForSession.goalProgress !== prevSessionState.goalProgress
+											? newStateForSession.goalProgress
+											: undefined,
+									goalRationale:
+										newStateForSession.goalRationale !== prevSessionState.goalRationale
+											? newStateForSession.goalRationale
+											: undefined,
+									goalIteration:
+										newStateForSession.goalIteration !== prevSessionState.goalIteration
+											? newStateForSession.goalIteration
+											: undefined,
+									goalExitReason:
+										newStateForSession.goalExitReason !== prevSessionState.goalExitReason
+											? newStateForSession.goalExitReason
+											: undefined,
 								},
 							});
 						}
