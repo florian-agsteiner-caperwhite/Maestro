@@ -509,7 +509,7 @@ export function BatchRunnerModal(props: BatchRunnerModalProps) {
 						prompt,
 						loopEnabled: false,
 						maxLoops: null,
-						goalConfig: { goal: goal.trim(), exitCriteria, maxIterations },
+						goalConfig: { goal: goal.trim(), exitCriteria: exitCriteria.trim(), maxIterations },
 						...(worktreeTarget && { worktreeTarget }),
 					}
 				: {

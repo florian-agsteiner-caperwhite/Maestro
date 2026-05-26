@@ -13,6 +13,7 @@ import type { Session, Group, BatchRunConfig } from '../../../../renderer/types'
 import { useBatchProcessor } from '../../../../renderer/hooks';
 import { useSettingsStore } from '../../../../renderer/stores/settingsStore';
 import { createMockSession as baseCreateMockSession } from '../../../helpers/mockSession';
+import { GOAL_RUN_HARD_ITERATION_CAP } from '../../../../shared/goalDriven/types';
 
 // Mock notifyToast so toasts don't blow up and can be inspected if needed.
 const { mockNotifyToast } = vi.hoisted(() => ({ mockNotifyToast: vi.fn() }));
@@ -222,6 +223,38 @@ describe('useGoalRunner (Goal-Driven Auto Run engine)', () => {
 		expect(summary.success).toBe(false);
 	});
 
+	it('treats marker-less responses as no progress and stalls instead of looping forever', async () => {
+		// Agent forgets to emit a progress marker every iteration. Each is treated
+		// as "no progress reported" (carried forward, never silently complete), so
+		// after STALL_THRESHOLD flat iterations the run must stop with "stalled".
+		mockOnSpawnAgent.mockImplementation(async () => ({
+			success: true,
+			agentSessionId: 'goal-agent',
+			response: 'Synopsis: I did some work but forgot to report a progress marker.',
+		}));
+
+		const { result } = renderProcessor([createMockSession()], [createMockGroup()]);
+
+		await act(async () => {
+			await result.current.startBatchRun(
+				SESSION_ID,
+				// Infinite run: only the stall detector can stop this, proving it does.
+				goalConfig('Forgetful agent goal', 'Done when X', null),
+				'/test/folder'
+			);
+		});
+
+		// Three marker-less iterations trip the stall — it does NOT spin forever.
+		expect(mockOnSpawnAgent).toHaveBeenCalledTimes(3);
+		const summary = finalSummaryEntry();
+		expect(summary.summary).toContain('stalled');
+		expect(summary.success).toBe(false);
+		// Carried-forward progress stays at 0 (no marker ever reported).
+		expect(mockOnComplete).toHaveBeenCalledWith(
+			expect.objectContaining({ completedTasks: 0, wasStopped: false })
+		);
+	});
+
 	it('exits "deadlock" when the agent declares one', async () => {
 		const responses = [
 			progressResponse(40, 'working'),
@@ -273,6 +306,34 @@ describe('useGoalRunner (Goal-Driven Auto Run engine)', () => {
 		const summary = finalSummaryEntry();
 		expect(summary.summary).toContain('iteration limit');
 	});
+
+	it('enforces the hard safety cap on an infinite run a buggy agent never finishes', async () => {
+		// Agent oscillates 50 -> 51 -> 50 -> 51..., which defeats stall detection
+		// (an upward tick keeps resetting the window) and never reaches 100 or
+		// deadlocks. Only the absolute safety bound can stop this.
+		let call = 0;
+		mockOnSpawnAgent.mockImplementation(async () => ({
+			success: true,
+			agentSessionId: 'goal-agent',
+			response: progressResponse(call++ % 2 === 0 ? 50 : 51, 'oscillating'),
+		}));
+
+		const { result } = renderProcessor([createMockSession()], [createMockGroup()]);
+
+		await act(async () => {
+			await result.current.startBatchRun(
+				SESSION_ID,
+				goalConfig('Never-ending goal', 'Done when X', null),
+				'/test/folder'
+			);
+		});
+
+		// Stops at exactly the hard cap — not one iteration more.
+		expect(mockOnSpawnAgent).toHaveBeenCalledTimes(GOAL_RUN_HARD_ITERATION_CAP);
+		const summary = finalSummaryEntry();
+		expect(summary.summary).toContain('iteration limit');
+		expect(summary.fullResponse).toContain('Safety limit reached');
+	}, 30000);
 
 	it('fires the run lifecycle: START_BATCH, power, stats, then COMPLETE_BATCH', async () => {
 		// Hold the first spawn so we can observe the running state mid-iteration.

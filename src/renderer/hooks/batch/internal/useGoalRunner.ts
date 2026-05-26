@@ -14,8 +14,10 @@ import type {
 	GoalExitReason,
 	GoalRunConfig,
 } from '../../../../shared/goalDriven/types';
+import { GOAL_RUN_HARD_ITERATION_CAP } from '../../../../shared/goalDriven/types';
 import { parseGoalMarkers } from '../../../../shared/goalDriven/goalMarkers';
 import { evaluateGoalExit } from '../../../../shared/goalDriven/goalExitEvaluator';
+import { formatGoalRunDocumentPath } from '../../../../shared/goalDriven/goalRunLabel';
 import { formatElapsedTime } from '../../../../shared/formatters';
 import {
 	substituteTemplateVariables,
@@ -313,14 +315,16 @@ export function useGoalRunner({
 			let finalProgress = 0;
 			let iteration = 0;
 
-			// Start stats tracking. Use the goal text as the document path so the run is
-			// recognizable in the Usage Dashboard; progress maps onto the 0–100 task scale.
+			// Start stats tracking. Record the goal as the document path behind a
+			// `Goal: ` prefix (trimmed to a readable length) so the run is
+			// recognizable — and distinguishable from document runs — in the Usage
+			// Dashboard; progress maps onto the 0–100 task scale.
 			let statsAutoRunId: string | null = null;
 			try {
 				statsAutoRunId = await window.maestro.stats.startAutoRun({
 					sessionId,
 					agentType: session.toolType,
-					documentPath: goalConfig.goal,
+					documentPath: formatGoalRunDocumentPath(goalConfig.goal),
 					startTime: goalStartTime,
 					tasksTotal: 100,
 					projectPath: session.cwd,
@@ -347,13 +351,24 @@ export function useGoalRunner({
 			let exitReason: GoalExitReason = 'stopped-by-user';
 			let exitDetail = 'Stopped by user.';
 
-			// Main goal loop. maxIterations === null means infinite — the evaluator owns
-			// the cap, so we never add our own bound here.
+			// Main goal loop. A finite maxIterations is enforced by the evaluator; an
+			// infinite (null) run relies on completion/deadlock/stall to stop, with the
+			// hard cap below as a last-resort safety net (see GOAL_RUN_HARD_ITERATION_CAP).
 			while (true) {
 				// Check for a stop request before each spawn (same contract as the doc loop).
 				if (stopRequestedRefs.current[sessionId]) {
 					exitReason = 'stopped-by-user';
 					exitDetail = 'Stopped by user.';
+					break;
+				}
+
+				// Absolute safety bound for infinite runs: a buggy/adversarial agent can
+				// defeat stall detection indefinitely without ever completing or
+				// deadlocking, which would otherwise spin forever. `iteration` here is the
+				// count already completed, so this stops after exactly the cap.
+				if (goalConfig.maxIterations === null && iteration >= GOAL_RUN_HARD_ITERATION_CAP) {
+					exitReason = 'max-iterations';
+					exitDetail = `Safety limit reached: stopped after ${GOAL_RUN_HARD_ITERATION_CAP} iterations without completion, deadlock, or stall.`;
 					break;
 				}
 

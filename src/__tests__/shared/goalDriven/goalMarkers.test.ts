@@ -57,6 +57,40 @@ describe('parseGoalMarkers', () => {
 			expect(result.rationale).toBeNull();
 		});
 
+		it('tolerates a trailing percent sign on the number', () => {
+			expect(parseGoalMarkers('<!-- maestro:progress 45% -->').progress).toBe(45);
+			expect(parseGoalMarkers('<!-- maestro:progress 45 % -->').progress).toBe(45);
+			// With a rationale after the percent.
+			const withRationale = parseGoalMarkers('<!-- maestro:progress 60% | data layer migrated -->');
+			expect(withRationale.progress).toBe(60);
+			expect(withRationale.rationale).toBe('data layer migrated');
+			// Percent on a 100 still implies completion.
+			const done = parseGoalMarkers('<!-- maestro:progress 100% | shipped -->');
+			expect(done.progress).toBe(100);
+			expect(done.complete).toBe(true);
+		});
+
+		it('finds a marker wrapped in backticks or a fenced code block', () => {
+			// Inline backticks around the whole marker.
+			expect(parseGoalMarkers('`<!-- maestro:progress 45 -->`').progress).toBe(45);
+			// Inside a fenced code block.
+			const fenced = ['```', '<!-- maestro:progress 70 | almost there -->', '```'].join('\n');
+			const result = parseGoalMarkers(fenced);
+			expect(result.progress).toBe(70);
+			expect(result.rationale).toBe('almost there');
+			// Fence with a language tag.
+			const tagged = ['```text', '<!-- maestro:progress 80 -->', '```'].join('\n');
+			expect(parseGoalMarkers(tagged).progress).toBe(80);
+		});
+
+		it('captures curly / smart punctuation in the rationale verbatim', () => {
+			const result = parseGoalMarkers(
+				'<!-- maestro:progress 55 | refactored the “auth” module — it’s nearly done… -->'
+			);
+			expect(result.progress).toBe(55);
+			expect(result.rationale).toBe('refactored the “auth” module — it’s nearly done…');
+		});
+
 		it('uses the last progress marker when several are present', () => {
 			const text = [
 				'<!-- maestro:progress 10 | started -->',

@@ -82,3 +82,19 @@ export type GoalExitDecision =
  * modes conceptually consistent.
  */
 export const STALL_THRESHOLD = 3;
+
+/**
+ * Absolute upper bound on iterations for an "infinite" (`maxIterations: null`)
+ * run.
+ *
+ * The normal exit paths — completion, deadlock, and stall detection — should
+ * stop any healthy run long before this. But a buggy or adversarial agent can
+ * defeat the stall detector indefinitely (e.g. oscillating its reported
+ * progress 50 → 51 → 50 → 51 so a strict upward tick keeps resetting the stall
+ * window) while never reaching 100 or declaring a deadlock. Without a hard
+ * ceiling that pattern would spin forever, burning tokens and money. The cap is
+ * deliberately high so it never interferes with a legitimately long goal; it is
+ * a last-resort safety net, not a tuning knob, and hitting it is reported as a
+ * "safety limit reached" stop rather than a normal completion.
+ */
+export const GOAL_RUN_HARD_ITERATION_CAP = 500;

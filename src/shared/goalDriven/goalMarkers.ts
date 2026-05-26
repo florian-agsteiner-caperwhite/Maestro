@@ -19,13 +19,20 @@
 import type { GoalMarkers } from './types';
 
 /**
- * Matches a progress marker: `<!-- maestro:progress <number> [| rationale] -->`.
+ * Matches a progress marker: `<!-- maestro:progress <number>[%] [| rationale] -->`.
  *
  * - `[\s\S]*?` inside the rationale group is non-greedy so it stops at the first
  *   `-->`. The `g` flag lets us collect every match and keep the LAST one.
  * - The number may be a float or negative; clamping/rounding happens afterward.
+ * - A trailing `%` (`progress 45%` or `progress 45 %`) is tolerated and ignored —
+ *   agents routinely write the percent sign even though the value is already a
+ *   percentage.
+ * - Because the pattern is matched anywhere in the text, a marker wrapped in
+ *   backticks or sitting inside a fenced code block is found unchanged, and any
+ *   curly/smart punctuation in the rationale is captured verbatim.
  */
-const PROGRESS_RE = /<!--\s*maestro:progress\s+(-?\d+(?:\.\d+)?)\s*(?:\|\s*([\s\S]*?))?\s*-->/g;
+const PROGRESS_RE =
+	/<!--\s*maestro:progress\s+(-?\d+(?:\.\d+)?)\s*%?\s*(?:\|\s*([\s\S]*?))?\s*-->/g;
 
 /** Matches the bare completion marker: `<!-- maestro:goal-complete -->`. */
 const COMPLETE_RE = /<!--\s*maestro:goal-complete\s*-->/g;
