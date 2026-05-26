@@ -437,17 +437,22 @@ export function useGoalRunner({
 					true
 				);
 
-				// Per-iteration history entry: synopsis + progress percent.
+				// Per-iteration history entry. The headline leads with the goal percent
+				// and the agent's rationale (falling back to its synopsis when no
+				// rationale was reported); the body keeps the agent's full output, which
+				// begins with its synopsis.
 				const synopsis = result.success
 					? extractGoalSynopsis(result.response, iteration)
 					: `Iteration ${iteration} failed`;
 				const fullResponse = result.success
 					? result.response || synopsis
 					: result.error || result.response || synopsis;
+				const rationaleText = markers.rationale?.trim();
+				const iterationSummary = `Goal progress: ${progress}% — ${rationaleText || synopsis}`;
 				onAddHistoryEntry({
 					type: 'AUTO',
 					timestamp: Date.now(),
-					summary: `${synopsis} — Progress: ${progress}%`,
+					summary: iterationSummary,
 					fullResponse,
 					agentSessionId: result.agentSessionId,
 					projectPath: effectiveCwd,

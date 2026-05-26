@@ -80,11 +80,21 @@ describe('useGoalRunner (Goal-Driven Auto Run engine)', () => {
 			})
 		);
 
-	/** Find the final-summary history entry (its summary starts with "Goal "). */
+	/**
+	 * Find the final-summary history entry. Per-iteration entries now lead with
+	 * "Goal progress: N% — …", so the final summary is the "Goal …" entry that is
+	 * NOT a per-iteration progress line (its prefix comes from `exitReasonLabel`,
+	 * e.g. "Goal completed", "Goal run stalled").
+	 */
 	const finalSummaryEntry = () =>
 		mockOnAddHistoryEntry.mock.calls
 			.map((call) => call[0])
-			.find((entry) => typeof entry?.summary === 'string' && entry.summary.startsWith('Goal '));
+			.find(
+				(entry) =>
+					typeof entry?.summary === 'string' &&
+					entry.summary.startsWith('Goal ') &&
+					!entry.summary.startsWith('Goal progress:')
+			);
 
 	beforeEach(() => {
 		useSettingsStore.setState({ autoRunDisabled: false });
@@ -158,6 +168,14 @@ describe('useGoalRunner (Goal-Driven Auto Run engine)', () => {
 
 		// Three iterations: 30 -> 70 -> 100, then stop.
 		expect(mockOnSpawnAgent).toHaveBeenCalledTimes(3);
+
+		// Per-iteration entries lead with the goal percent + rationale, and keep the
+		// agent's full output (which begins with its synopsis) as the body.
+		const iterationEntries = mockOnAddHistoryEntry.mock.calls
+			.map((call) => call[0])
+			.filter((entry) => entry?.summary?.startsWith('Goal progress:'));
+		expect(iterationEntries[0].summary).toBe('Goal progress: 30% — scaffolded');
+		expect(iterationEntries[1].summary).toBe('Goal progress: 70% — data layer migrated');
 
 		// Final summary entry reflects completion.
 		const summary = finalSummaryEntry();
