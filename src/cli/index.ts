@@ -53,6 +53,7 @@ import { gistCreate } from './commands/gist';
 import { notifyToast } from './commands/notify-toast';
 import { notifyFlash } from './commands/notify-flash';
 import { stats, statsQuery } from './commands/stats';
+import { listEfforts, listModels } from './commands/list-agent-options';
 
 // Injected at build time by scripts/build-cli.mjs via esbuild `define`.
 // The typeof guard keeps non-esbuild execution paths (ts-node, plain tsc output) from
@@ -103,6 +104,18 @@ list
 	.option('--json', 'Output as JSON lines (for scripting)')
 	.action(listSshRemotes);
 
+list
+	.command('models <agent-id>')
+	.description('List available models for an agent')
+	.option('--json', 'Output as JSON (for scripting)')
+	.action(listModels);
+
+list
+	.command('efforts <agent-id>')
+	.description('List available effort levels for an agent')
+	.option('--json', 'Output as JSON (for scripting)')
+	.action(listEfforts);
+
 // Show command
 const show = program.command('show').description('Show details of a resource');
 
@@ -152,6 +165,8 @@ program
 	.option('-s, --session <id>', 'Resume an existing agent session (for multi-turn conversations)')
 	.option('-r, --read-only', 'Run in read-only/plan mode (agent cannot modify files)')
 	.option('-t, --tab', 'Open/focus the session tab in Maestro desktop')
+	.option('--model <model>', 'Model override for this send only')
+	.option('--effort <level>', 'Effort/reasoning override for this send only')
 	.option(
 		'--no-system-prompt',
 		'Skip the Maestro system prompt (agent identity, git branch, history path, conductor profile). Default is to include it for parity with the desktop app.'
