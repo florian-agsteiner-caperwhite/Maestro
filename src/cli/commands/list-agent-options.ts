@@ -9,14 +9,7 @@ interface ListAgentOptionsCommandOptions {
 }
 
 function resolveAgent(agentIdArg: string): { toolType: ToolType; resolvedAgentId: string } {
-	let resolvedAgentId: string;
-	try {
-		resolvedAgentId = resolveAgentId(agentIdArg);
-	} catch (error) {
-		const message = error instanceof Error ? error.message : 'Unknown error';
-		throw new Error(message);
-	}
-
+	const resolvedAgentId = resolveAgentId(agentIdArg);
 	const agent = getSessionById(resolvedAgentId);
 	if (!agent) {
 		throw new Error(`Agent not found: ${agentIdArg}`);
@@ -60,7 +53,13 @@ export async function listModels(
 		}
 
 		const detector = createDetector(toolType);
-		const models = await detector.discoverModels(toolType);
+		let models: string[];
+		try {
+			models = await detector.discoverModels(toolType);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			throw new Error(`Failed to discover models for agent "${agentIdArg}": ${message}`);
+		}
 		printOptions(models, options.json);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -89,7 +88,13 @@ export async function listEfforts(
 		}
 
 		const detector = createDetector(toolType);
-		const efforts = await detector.discoverConfigOptions(toolType, effortOptionKey);
+		let efforts: string[];
+		try {
+			efforts = await detector.discoverConfigOptions(toolType, effortOptionKey);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			throw new Error(`Failed to discover effort levels for agent "${agentIdArg}": ${message}`);
+		}
 		printOptions(efforts, options.json);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
