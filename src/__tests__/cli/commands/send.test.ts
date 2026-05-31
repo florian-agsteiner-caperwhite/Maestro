@@ -230,6 +230,32 @@ describe('send command', () => {
 		);
 	});
 
+	it('should let send options override the agent model and effort', async () => {
+		vi.mocked(resolveAgentId).mockReturnValue('agent-abc-123');
+		vi.mocked(getSessionById).mockReturnValue(
+			mockAgent({ customModel: 'session-model', customEffort: 'medium' })
+		);
+		vi.mocked(detectAgent).mockResolvedValue({ available: true, path: '/usr/bin/claude' });
+		vi.mocked(spawnAgent).mockResolvedValue({
+			success: true,
+			response: 'Overridden',
+			agentSessionId: 'session-override',
+		});
+
+		await send('agent-abc', 'Use custom settings', { model: 'sonnet', effort: 'high' });
+
+		expect(spawnAgent).toHaveBeenCalledWith(
+			'claude-code',
+			'/path/to/project',
+			'Use custom settings',
+			undefined,
+			expect.objectContaining({
+				customModel: 'sonnet',
+				customEffort: 'high',
+			})
+		);
+	});
+
 	it('should exit with error when agent ID is not found', async () => {
 		vi.mocked(resolveAgentId).mockImplementation(() => {
 			throw new Error('Agent not found: bad-id');

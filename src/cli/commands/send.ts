@@ -13,6 +13,8 @@ interface SendOptions {
 	session?: string;
 	readOnly?: boolean;
 	tab?: boolean;
+	model?: string;
+	effort?: string;
 	// Commander auto-negates `--no-system-prompt` into `systemPrompt: false`,
 	// defaulting to true when the flag is omitted. Bots calling
 	// `maestro-cli send` get the Maestro system context by default — parity
@@ -133,8 +135,8 @@ export async function send(
 	// Spawn agent — spawnAgent handles --resume vs fresh session internally
 	const result = await spawnAgent(agent.toolType, agent.cwd, message, agentSessionId, {
 		readOnlyMode: options.readOnly,
-		customModel: agent.customModel,
-		customEffort: agent.customEffort,
+		customModel: options.model?.trim() || agent.customModel,
+		customEffort: options.effort?.trim() || agent.customEffort,
 		customArgs: agent.customArgs,
 		customEnvVars: agent.customEnvVars,
 		sshRemoteConfig: agent.sessionSshRemoteConfig,
