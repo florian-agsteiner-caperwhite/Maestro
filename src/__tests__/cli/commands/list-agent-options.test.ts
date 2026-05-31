@@ -5,11 +5,11 @@ const discoverConfigOptionsMock = vi.fn();
 const setCustomPathsMock = vi.fn();
 
 vi.mock('../../../main/agents/detector', () => ({
-	AgentDetector: vi.fn().mockImplementation(() => ({
-		discoverModels: discoverModelsMock,
-		discoverConfigOptions: discoverConfigOptionsMock,
-		setCustomPaths: setCustomPathsMock,
-	})),
+	AgentDetector: class {
+		discoverModels = discoverModelsMock;
+		discoverConfigOptions = discoverConfigOptionsMock;
+		setCustomPaths = setCustomPathsMock;
+	},
 }));
 
 vi.mock('../../../cli/services/storage', () => ({
